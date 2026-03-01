@@ -46,20 +46,25 @@ class GeoIPValidator:
     def validate_ip(self, ip_string: str):
         if not self.reader:
             if self.default_block:
+                logger.error(f"GeoIP DB missing, kubeWAF policy set to default block")
                 raise HTTPException(status_code=500, detail="GeoIP Service Unavailable")
+            logger.error(f"GeoIP DB missing, kubeWAF policy set to default allow")
             return {"decision": "allow", "reason": "database missing"}
 
         try:
             ip_obj = ipaddress.ip_address(ip_string)
             if ip_obj.is_private:
+                logger.info(f"Access Approved for Client Private IP Address -> {ip_string}")
                 return {"decision": "allow", "reason": "private ip"}
 
             response = self.reader.country(ip_string)
             country_code = response.country.iso_code
 
             if country_code in self.whitelisted_countries:
+                logger.info(f"Access Approved..Client IP Address: {ip_string} is whitelisted")
                 return {"decision": "allow", "country": country_code}
             
+            logger.error(f"Access Denied..Client IP Address: {ip_string} is not whitelisted")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
                 detail=f"Country {country_code} not authorized"
@@ -68,4 +73,5 @@ class GeoIPValidator:
         except geoip2.errors.AddressNotFoundError:
             if self.default_block:
                 raise HTTPException(status_code=403, detail="IP location unknown")
+            logger.error(f"Access Denied..Location unknown for Client IP Address: {ip_string}")
             return {"decision": "allow", "reason": "default allow on unknown"}
