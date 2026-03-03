@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, HTTPException
 from contextlib import asynccontextmanager
 import threading
 
@@ -12,7 +12,8 @@ logger = initialize_logger()
 geoip_service = GeoIPValidator(
     db_path=settings.geoip_db_path,
     whitelisted_countries=settings.whitelisted_set,
-    default_block=settings.geoip_default_block
+    default_block=settings.geoip_default_block,
+    reload_interval=3600
 )
 
 @asynccontextmanager
@@ -29,10 +30,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-@app.get("/authz")
+@app.get("/")
 async def authorize(x_forwarded_for: str = Header(None)):
     if not settings.enable_geoip:
         return {"decision": "allow", "reason": "geoip validation disabled"}
-    
-    client_ip = x_forwarded_for.split(",")[0].strip()
-    return geoip_service.validate_ip(client_ip)
+    if x_forwarded_for:
+        client_ip = x_forwarded_for.split(",")[0].strip()
+        return geoip_service.validate_ip(client_ip)
+    else:
+        logger.error("Client IP header not sent by Envoy")
+        raise HTTPException(status_code=403,
+                            detail="Client IP header missing")

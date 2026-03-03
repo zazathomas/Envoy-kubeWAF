@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     geoip_default_block: bool = True
     geoip_db_path: str = "./geoip_db/GeoLite2-Country.mmdb"
     whitelisted_countries: str = "IE,GB,NG"
+    log_level: str = "INFO"
 
     @property
     def whitelisted_set(self) -> Set[str]:
