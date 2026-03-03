@@ -52,10 +52,12 @@ class GeoIPValidator:
             logger.warning("[DEFAULT_ALLOW] GeoIP Database missing")
             return {"decision": "allow", "reason": "[DEFAULT_ALLOW] GeoIP Database missing"}
 
+
         try:
             ip_obj = ipaddress.ip_address(ip_string)
             if ip_obj.is_private:
                 logger.info(f"Access Approved: Client Private IP {ip_string} Detected")
+
                 return {"decision": "allow", "reason": "private ip"}
 
             response = self.reader.country(ip_string)
@@ -76,4 +78,3 @@ class GeoIPValidator:
                 logger.info(f"Access Denied: Origin Country Client IP {ip_string} not found")
                 raise HTTPException(status_code=403, detail="IP location unknown")
             logger.warning(f"[DEFAULT_ALLOW] Access Approved: Unknown Origin Country Client IP {ip_string}")
-            return {"decision": "allow", "reason": "default allow on unknown"}
