@@ -63,7 +63,7 @@ kubectl create job --from=cronjob/geoip-db-updater geoip-db-initial-manual -n ku
 ## Endpoints
 
 * `GET /` – The main authorization hook called by Envoy.
-* `GET /health/security` – Real-time status of loaded modules and GeoIP health.
+* `GET /health` – Real-time status of loaded modules and GeoIP health.
 * `GET /captures` – Debug endpoint to inspect headers and metadata sent by Envoy.
 
 ---
