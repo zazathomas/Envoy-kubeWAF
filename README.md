@@ -47,7 +47,7 @@ docker compose up -d
 
 ```bash
 # Deploy the full stack
-kubectl -k k8s/ -n kubewaf
+kubectl apply -k k8s/ -n kubewaf
 
 # Manually trigger the initial GeoIP database download
 kubectl create job --from=cronjob/geoip-db-updater geoip-db-initial-manual -n kubewaf
