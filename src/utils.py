@@ -1,6 +1,5 @@
-import os
 import logging
-from config import settings
+from src.config import settings
 
 def initialize_logger():
     log_level_str = settings.log_level.upper()

@@ -3,12 +3,13 @@ import time
 import geoip2.database
 import geoip2.errors
 import ipaddress
-from fastapi import HTTPException, status
-from utils import initialize_logger
+from fastapi import Request
+from src.utils import initialize_logger
+from src.interfaces import BaseSecurityModule
 
 logger = initialize_logger()
 
-class GeoIPValidator:
+class GeoIPValidator(BaseSecurityModule):
     def __init__(self, db_path: str, whitelisted_countries: set, reload_interval: int = 3600, default_block: bool = True):
         self.db_path = db_path
         self.whitelisted_countries = whitelisted_countries
@@ -44,37 +45,42 @@ class GeoIPValidator:
         if self.reader:
             self.reader.close()
 
-    def validate_ip(self, ip_string: str):
+    async def validate_request(self, request: Request):
+        ip_string = request.headers.get("x-envoy-external-address", "missing-header")
+        if ip_string == "missing-header":
+            return {"decision": "deny", "reason": "Missing Client IP Header"}
+        
+        try:
+            ip_obj = ipaddress.ip_address(ip_string)
+            if ip_obj.is_private:
+                logger.info(f"Access Approved: Client IP {ip_string} is Private")
+                return {"decision": "allow", "reason": "private ip"}
+        except ValueError:
+            logger.warning(f"Access Denied: Invalid Client IP {ip_string} format")
+            return {"decision": "deny", "reason": "Invalid IP format"}
+        
         if not self.reader:
             if self.default_block:
-                logger.error("[DEFAULT_BLOCK] GeoIP Database missing")
-                raise HTTPException(status_code=403, detail="[DEFAULT_BLOCK] GeoIP Database missing")
+                logger.warning("[DEFAULT_BLOCK] GeoIP Database missing")
+                return {"decision": "deny", "reason": "[DEFAULT_BLOCK] GeoIP Database missing"}
             logger.warning("[DEFAULT_ALLOW] GeoIP Database missing")
             return {"decision": "allow", "reason": "[DEFAULT_ALLOW] GeoIP Database missing"}
 
 
         try:
-            ip_obj = ipaddress.ip_address(ip_string)
-            if ip_obj.is_private:
-                logger.info(f"Access Approved: Client Private IP {ip_string} Detected")
-
-                return {"decision": "allow", "reason": "private ip"}
-
             response = self.reader.country(ip_string)
             country_code = response.country.iso_code
 
             if country_code in self.whitelisted_countries:
-                logger.info(f"Access Approved: Client IP {ip_string} is whitelisted")
-                return {"decision": "allow", "country": country_code}
+                logger.info(f"Access Approved: Client IP {ip_string} country {country_code} is authorized")
+                return {"decision": "allow", "reason": f"Client IP {ip_string} country {country_code} is authorized"}
             
-            logger.info(f"Access Denied: Client IP {ip_string} is not whitelisted")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
-                detail=f"Country {country_code} not authorized"
-            )
+            logger.warning(f"Access Denied: Client IP {ip_string} country {country_code} is not authorized")
+            return {"decision": "deny", "reason": f"Client IP {ip_string} country {country_code} is not authorized"}
 
         except geoip2.errors.AddressNotFoundError:
             if self.default_block:
-                logger.info(f"Access Denied: Origin Country Client IP {ip_string} not found")
-                raise HTTPException(status_code=403, detail="IP location unknown")
-            logger.warning(f"[DEFAULT_ALLOW] Access Approved: Unknown Origin Country Client IP {ip_string}")
+                logger.info(f"Access Denied: Unknown Origin Country for Client IP {ip_string}")
+                return {"decision": "deny", "reason": f"Unknown Origin Country for Client IP {ip_string}"}
+            logger.warning(f"[DEFAULT_ALLOW] Access Approved: Unknown Origin Country for Client IP {ip_string}")
+            return {"decision": "allow", "reason": f"[DEFAULT_ALLOW] Unknown Origin Country for Client IP {ip_string}"}

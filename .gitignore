@@ -207,6 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 
-k8s/
+# k8s/
 geoip_db
 snippets.md
