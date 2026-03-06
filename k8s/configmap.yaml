@@ -7,7 +7,7 @@ data:
   LOG_LEVEL: "INFO"
   # GeoIP Config
   ENABLE_GEOIP: "true"
-  GEOIP_DB_PATH: "./geoip_db/GeoLite2-Country.mmdb"
+  GEOIP_DB_PATH: "/geoip_db/GeoLite2-Country.mmdb"
   GEOIP_DEFAULT_BLOCK: "true"
   WHITELISTED_COUNTRIES: "IE,GB,NG"
   # Bot Detection Config

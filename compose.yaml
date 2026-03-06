@@ -16,29 +16,27 @@ services:
       - ./geoip_db:/geoip_db:ro
     restart: unless-stopped
     depends_on:
-      - geoip-updater
+      geoip-updater:
+        condition: service_healthy
 
   geoip-updater:
     image: curlimages/curl:8.1.0
     container_name: geoip-db-updater
     volumes:
-      - geoip-data:/geoip_db
+      - ./geoip-data:/geoip_db
     env_file:
       - .env
     restart: always
-    entrypoint: ["/bin/sh", "-c"]
     command: >
-      "while true; do
-        echo \"$(date): Starting GeoIP DB Update...\";
-        curl -f -L -u $${MAXMIND_ACCOUNT_ID}:$${MAXMIND_LICENSE_KEY} \
-          'https://download.maxmind.com/geoip/databases/GeoLite2-Country/download?suffix=tar.gz' \
-          -o /tmp/db.tar.gz && \
-        tar -xzf /tmp/db.tar.gz -C /geoip_db --strip-components=1 && \
-        echo \"$(date): Update complete. Sleeping for 24 hours...\";
-        sleep 86400;
+      /bin/sh -c "while true; do 
+      echo \"$(date): Starting GeoIP DB Update...\"; 
+      curl -f -L -u $${MAXMIND_ACCOUNT_ID}:$${MAXMIND_LICENSE_KEY} 'https://download.maxmind.com/geoip/databases/GeoLite2-Country/download?suffix=tar.gz' -o /tmp/db.tar.gz && 
+      tar -xzf /tmp/db.tar.gz -C /geoip_db --strip-components=1 && 
+      echo \"$(date): Update complete. Sleeping 24h...\"; 
+      sleep 86400; 
       done"
     healthcheck:
       test: ["CMD", "test", "-f", "/geoip_db/GeoLite2-Country.mmdb"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
